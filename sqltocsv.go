@@ -21,6 +21,13 @@ func WriteFile(csvFileName string, rows *sql.Rows) error {
 	return New(rows).WriteFile(csvFileName)
 }
 
+// AppendOrWriteFile will write a CSV file to the file name specified (with headers)
+// based on whatever is in the sql.Rows you pass in. It calls WriteCsvToWriter under
+// the hood.
+func AppendOrWriteFile(csvFileName string, rows *sql.Rows) error {
+	return New(rows).AppendOrWriteFile(csvFileName)
+}
+
 // WriteString will return a string of the CSV. Don't use this unless you've
 // got a small data set or a lot of memory
 func WriteString(rows *sql.Rows) (string, error) {
@@ -77,6 +84,22 @@ func (c Converter) WriteString() (string, error) {
 // WriteFile writes the CSV to the filename specified, return an error if problem
 func (c Converter) WriteFile(csvFileName string) error {
 	f, err := os.Create(csvFileName)
+	if err != nil {
+		return err
+	}
+
+	err = c.Write(f)
+	if err != nil {
+		f.Close() // close, but only return/handle the write error
+		return err
+	}
+
+	return f.Close()
+}
+
+// AppendOrWriteFile writes the CSV to the filename specified, return an error if problem
+func (c Converter) AppendOrWriteFile(csvFileName string) error {
+	f, err := os.OpenFile(csvFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
