@@ -52,10 +52,9 @@ type CsvPreProcessorFunc func(row []string, columnNames []string) (outputRow boo
 // There are a few settings you can override if you want to do
 // some fancy stuff to your CSV.
 type Converter struct {
-	Headers        []string // Column headers to use (default is rows.Columns())
-	WriteHeaders   bool     // Flag to output headers in your CSV (default is true)
-	HeadersWritten bool     // Flag if headers have been written already
-	TimeFormat     string   // Format string for any time.Time values (default is time's default)
+	Headers      []string // Column headers to use (default is rows.Columns())
+	WriteHeaders bool     // Flag to output headers in your CSV (default is true)
+	TimeFormat   string   // Format string for any time.Time values (default is time's default)
 
 	rows            *sql.Rows
 	rowPreProcessor CsvPreProcessorFunc
@@ -100,6 +99,9 @@ func (c Converter) WriteFile(csvFileName string) error {
 
 // AppendOrWriteFile writes the CSV to the filename specified, return an error if problem
 func (c Converter) AppendOrWriteFile(csvFileName string) error {
+	if _, err := os.Stat(csvFileName); err == nil {
+		c.WriteHeaders = false
+	}
 	f, err := os.OpenFile(csvFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
@@ -124,7 +126,7 @@ func (c Converter) Write(writer io.Writer) error {
 		return err
 	}
 
-	if c.WriteHeaders && !c.HeadersWritten {
+	if c.WriteHeaders {
 		// use Headers if set, otherwise default to
 		// query Columns
 		var headers []string
@@ -138,7 +140,6 @@ func (c Converter) Write(writer io.Writer) error {
 			// TODO wrap err to say it was an issue with headers?
 			return err
 		}
-		c.HeadersWritten = true
 	}
 
 	count := len(columnNames)
@@ -203,8 +204,7 @@ func (c Converter) Write(writer io.Writer) error {
 // headers or injecting a pre-processing step into your conversion
 func New(rows *sql.Rows) *Converter {
 	return &Converter{
-		rows:           rows,
-		WriteHeaders:   true,
-		HeadersWritten: false,
+		rows:         rows,
+		WriteHeaders: true,
 	}
 }
